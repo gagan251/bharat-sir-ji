@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check if the user document exists and the role is 'admin'.
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // User profiles can be managed by the owner or an admin.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+      // Allow anyone to create a user profile (signup).
+      allow create: if true;
+    }
+    
+    match /users/{userId}/{subcollection=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Courses are readable by anyone, but only writable by admins.
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reviews can be created by any authenticated user, read by anyone, managed by admins.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+    
+    // Live Classes can only be managed by admins, read by authenticated users.
+    match /liveClasses/{classId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+    }
+
+    // Playbooks can only be managed by admins, read by authenticated users.
+    match /playbooks/{playbookId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+    }
+    
+    // Library content can only be managed by admins, read by authenticated users.
+    match /library/{fileId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+    }
+
+    // Steno Tests can only be managed by admins, read by authenticated users.
+    match /stenoTests/{testId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+    }
+  }
+}
